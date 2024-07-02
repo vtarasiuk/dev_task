@@ -2,12 +2,19 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <limits.h>
+#include <search.h>
 
 #define STDERR stderr
 #define INPUT_FILE_ARG_INDEX 1
 
 #define NUMERIC_FORMAT "lld"
 typedef long long int NumericType;
+typedef long double   fNumericType;
+
+inline NumericType calculateMaxNumber(NumericType max, NumericType value);
+int compareNumericTypes(const void *arg1, const void *arg2);
+
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -24,25 +31,88 @@ int main(int argc, char *argv[]) {
 
   const clock_t start_time = clock();
 
+  if (fseek(input_file_stream, 0, SEEK_END) != 0) {
+    // error with seeking a file
+  }
+  size_t input_file_size = ftell(input_file_stream);
+  if (input_file_size == -1) {
+    // error hangling
+  }
+  if (fseek(input_file_stream, 0, SEEK_SET) != 0) {
+
+    // error seeking a file
+  }
+  
+  size_t alloc_size = 1;
+  while (alloc_size < input_file_size / sizeof(NumericType) / 8) {
+    alloc_size *= 2;
+  }
+  printf("alloc_size: %zu\n", alloc_size);
+
+  NumericType *numbers = malloc(sizeof(NumericType) * alloc_size);
+  // error handling
   NumericType number_read_from_file = 0;
-  int return_value = 0;
-  size_t i = 0;
-  for (i = 0; ; i++) {
-    return_value = fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file);
-    if (return_value == EOF || return_value == 0) {
+  if (fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file) != 1) {
+    // error && EOF handling
+    return 3;
+  }
+
+  numbers[0] = number_read_from_file;
+  fNumericType average = number_read_from_file;
+
+  int status_code = 0;
+  size_t i;
+  for (i = 1; ; i++) {
+    status_code = fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file);
+    if (status_code == EOF || status_code == 0) {
       fprintf(STDERR, "End of file reached\n");
       break;
     }
+    if (i == alloc_size) {
+      numbers = realloc(numbers, alloc_size * sizeof(NumericType) * 2);
+      // error handling && magic value
+      alloc_size *= 2;
+    }
+    numbers[i] = number_read_from_file;
+    average += (number_read_from_file - average) / (i + 1);
   }
+
+  qsort(numbers, i, sizeof(NumericType), compareNumericTypes);
+  
+  printf("i = %zu\nmin: %lld\n", i, numbers[0]);
+  printf("max: %lld\n", numbers[i - 1]);
+  printf("average: %Lf\n", average);
+
+  if (i % 2 == 0) {
+    printf("median: %Lf\n", (fNumericType) (numbers[i / 2] + numbers[i / 2 + 1]) / 2);
+  }
+  else {
+    printf("median: %lld\n", numbers[i / 2]);
+  }
+  
+  free(numbers);
 
   const clock_t end_time = clock();
   const double time_spent = (double) (end_time - start_time) / CLOCKS_PER_SEC;
   fprintf(STDERR, "Time taken: %f seconds\n", time_spent);
-
+  
   if (fclose(input_file_stream) != 0) {
     fprintf(STDERR, "fclose - error closing a file: %s", strerror(errno));
-    return 3;
+    return 4;
   }
 
+  return 0;
+}
+
+NumericType calculateMaxNumber(NumericType max, NumericType value) {
+  return (value > max) ? value : max;
+}
+
+int compareNumericTypes(const void *arg1, const void *arg2) {
+  NumericType num1 = *(NumericType *)arg1;
+  NumericType num2 = *(NumericType *)arg2;
+  
+  if (num1 < num2) return -1;
+  if (num1 > num2) return 1;
   return 0;
 }
