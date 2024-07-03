@@ -1,21 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <limits.h>
-#include <search.h>
-#include <malloc.h>
-
-#define STDERR stderr
-#define INPUT_FILE_ARG_INDEX 1
-
-#define NUMERIC_FORMAT "lld"
-typedef long long int NumericType;
-typedef long double   fNumericType;
-
-inline NumericType calculateMaxNumber(NumericType max, NumericType value);
-int compareNumericTypes(const void *arg1, const void *arg2);
+#include "dev_task.h"
 
 int main(int argc, char *argv[])
 {
@@ -35,19 +18,7 @@ int main(int argc, char *argv[])
 
     const clock_t start_time = clock();
 
-    if (fseek(input_file_stream, 0, SEEK_END) != 0)
-    {
-        return 3;
-    }
-    const size_t input_file_size = ftell(input_file_stream);
-    if (input_file_size == EOF)
-    {
-        return 4;
-    }
-    if (fseek(input_file_stream, 0, SEEK_SET) != 0)
-    {
-        return 5;
-    }
+    const size_t input_file_size = fileSize(input_file_stream);
 
     size_t alloc_size = 1;
     while (alloc_size < input_file_size / sizeof(NumericType) / 8)
@@ -59,7 +30,6 @@ int main(int argc, char *argv[])
     NumericType *numbers = malloc(sizeof(NumericType) * alloc_size);
     if (numbers == NULL)
     {
-        // other error handling
         return 6;
     }
     NumericType number_read_from_file = 0;
@@ -72,7 +42,7 @@ int main(int argc, char *argv[])
     fNumericType average = (fNumericType) number_read_from_file;
 
     int status_code = 0;
-    size_t i;
+    size_t i = 0;
     for (i = 1;; i++)
     {
         status_code = fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file);
@@ -147,7 +117,34 @@ int compareNumericTypes(const void *arg1, const void *arg2)
     NumericType num1 = *(NumericType *)arg1;
     NumericType num2 = *(NumericType *)arg2;
 
-    if (num1 < num2) return -1;
-    if (num1 > num2) return 1;
+    if (num1 < num2)
+    {
+        return -1;
+    }
+    if (num1 > num2)
+    {
+        return 1;
+    }
     return 0;
+}
+
+long fileSize(FILE* stream)
+{
+    if (fseek(stream, 0, SEEK_END) != 0)
+    {
+        return EOF;
+    }
+
+    long file_size = ftell(stream);
+    if (file_size == -1L)
+    {
+        return EOF;
+    }
+
+    if (fseek(stream, 0, SEEK_SET) != 0)
+    {
+        return EOF;
+    }
+
+    return file_size;
 }
