@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -36,16 +37,16 @@ int main(int argc, char *argv[])
 
     if (fseek(input_file_stream, 0, SEEK_END) != 0)
     {
-        // error with seeking a file
+        return 3;
     }
-    size_t input_file_size = ftell(input_file_stream);
-    if (input_file_size == -1)
+    const size_t input_file_size = ftell(input_file_stream);
+    if (input_file_size == EOF)
     {
-        // error handling
+        return 4;
     }
     if (fseek(input_file_stream, 0, SEEK_SET) != 0)
     {
-        // error seeking a file
+        return 5;
     }
 
     size_t alloc_size = 1;
@@ -56,26 +57,34 @@ int main(int argc, char *argv[])
     printf("alloc_size: %zu\n", alloc_size);
 
     NumericType *numbers = malloc(sizeof(NumericType) * alloc_size);
-    // error handling
+    if (numbers == NULL)
+    {
+        // other error handling
+        return 6;
+    }
     NumericType number_read_from_file = 0;
     if (fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file) != 1)
     {
-        // error && EOF handling
-        return 3;
+        return 7;
     }
 
     numbers[0] = number_read_from_file;
-    fNumericType average = number_read_from_file;
+    fNumericType average = (fNumericType) number_read_from_file;
 
     int status_code = 0;
     size_t i;
     for (i = 1;; i++)
     {
         status_code = fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file);
-        if (status_code == EOF || status_code == 0)
+        if (status_code != 1)
         {
+            if (status_code == 0)
+            {
+                fprintf(STDERR, "Error during fscanf call\n");
+                break; // exit failure
+            }
             fprintf(STDERR, "End of file reached\n");
-            break;
+            break; // exit failure
         }
         if (i == alloc_size)
         {
@@ -94,12 +103,16 @@ int main(int argc, char *argv[])
         average += (number_read_from_file - average) / (i + 1);
     }
 
-    qsort(numbers, i, sizeof(NumericType), compareNumericTypes);
+    if (i != 1)
+    {
+        qsort(numbers, i, sizeof(NumericType), compareNumericTypes);
+    }
 
+    printf("alloc_size: %zu\n", alloc_size);
     printf("i = %zu\nmin: %lld\n", i, numbers[0]);
     printf("max: %lld\n", numbers[i - 1]);
     printf("average: %Lf\n", average);
-
+    
     if (i % 2 == 0)
     {
         printf("median: %Lf\n", (fNumericType) (numbers[i / 2] + numbers[i / 2 + 1]) / 2);
@@ -118,7 +131,7 @@ int main(int argc, char *argv[])
     if (fclose(input_file_stream) == EOF)
     {
         fprintf(STDERR, "fclose - error closing a file: %s", strerror(errno));
-        return 4;
+        return 9;
     }
 
     return 0;
