@@ -1,11 +1,18 @@
 #include "dev_task.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <limits.h>
+#include <search.h>
+#include <malloc.h>
 
 int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
         fprintf(STDERR, "Usage: %s <filepath>\n", argv[0]);
-        return 1;
+        return EXIT_FAILURE;
     }
 
     char *input_file_path = argv[INPUT_FILE_ARG_INDEX];
@@ -13,15 +20,20 @@ int main(int argc, char *argv[])
     if (input_file_stream == NULL)
     {
         fprintf(STDERR, "fopen - error opening a file: %s\n", strerror(errno));
-        return 2;
+        return EXIT_FAILURE;
     }
 
     const clock_t start_time = clock();
 
     const size_t input_file_size = fileSize(input_file_stream);
+    if (input_file_size == EOF)
+    {
+        fprintf(STDERR, "Can't calculate file size\n");
+        return EXIT_FAILURE;
+    }
 
     size_t alloc_size = 1;
-    while (alloc_size < input_file_size / sizeof(NumericType) / 8)
+    while (alloc_size < input_file_size / sizeof(NumericType) / CHAR_BIT)
     {
         alloc_size *= 2;
     }
@@ -30,31 +42,29 @@ int main(int argc, char *argv[])
     NumericType *numbers = malloc(sizeof(NumericType) * alloc_size);
     if (numbers == NULL)
     {
-        return 6;
+        fclose(input_file_stream);
+        return EXIT_FAILURE;
     }
     NumericType number_read_from_file = 0;
-    if (fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file) != 1)
-    {
-        return 7;
-    }
-
-    numbers[0] = number_read_from_file;
-    fNumericType average = (fNumericType) number_read_from_file;
+    fNumericType average = 0;
 
     int status_code = 0;
-    size_t i = 0;
-    for (i = 1;; i++)
+    size_t arr_size = 0;
+    for (size_t i = 0; ; ++i)
     {
         status_code = fscanf(input_file_stream, "%" NUMERIC_FORMAT, &number_read_from_file);
         if (status_code != 1)
         {
             if (status_code == 0)
             {
-                fprintf(STDERR, "Error during fscanf call\n");
-                break; // exit failure
+                fprintf(STDERR, "Couldn't read a number from a file\n");
+                free(numbers);
+                fclose(input_file_stream);
+                return EXIT_FAILURE;
             }
             fprintf(STDERR, "End of file reached\n");
-            break; // exit failure
+            arr_size = i;
+            break;
         }
         if (i == alloc_size)
         {
@@ -64,8 +74,8 @@ int main(int argc, char *argv[])
             {
                 fprintf(STDERR, "realloc - memory reallocation failed: %s\n", strerror(errno));
                 free(numbers);
-                // fclose ???
-                return 8;
+                fclose(input_file_stream);
+                return EXIT_FAILURE;
             }
             numbers = temp;
         }
@@ -73,23 +83,23 @@ int main(int argc, char *argv[])
         average += (number_read_from_file - average) / (i + 1);
     }
 
-    if (i != 1)
+    if (arr_size != 1)
     {
-        qsort(numbers, i, sizeof(NumericType), compareNumericTypes);
+        qsort(numbers, arr_size, sizeof(NumericType), compareNumericTypes);
     }
 
     printf("alloc_size: %zu\n", alloc_size);
-    printf("i = %zu\nmin: %lld\n", i, numbers[0]);
-    printf("max: %lld\n", numbers[i - 1]);
+    printf("arr_size = %zu\nmin: %lld\n", arr_size, numbers[0]);
+    printf("max: %lld\n", numbers[arr_size - 1]);
     printf("average: %Lf\n", average);
     
-    if (i % 2 == 0)
+    if (arr_size % 2 == 0)
     {
-        printf("median: %Lf\n", (fNumericType) (numbers[i / 2] + numbers[i / 2 + 1]) / 2);
+        printf("median: %Lf\n", (fNumericType) (numbers[arr_size / 2] + numbers[arr_size / 2 + 1]) / 2);
     }
     else
     {
-        printf("median: %lld\n", numbers[i / 2]);
+        printf("median: %lld\n", numbers[arr_size / 2]);
     }
 
     free(numbers);
@@ -101,31 +111,27 @@ int main(int argc, char *argv[])
     if (fclose(input_file_stream) == EOF)
     {
         fprintf(STDERR, "fclose - error closing a file: %s", strerror(errno));
-        return 9;
+        return EXIT_FAILURE;
     }
 
-    return 0;
-}
-
-NumericType calculateMaxNumber(NumericType max, NumericType value)
-{
-    return (value > max) ? value : max;
+    return EXIT_SUCCESS;
 }
 
 int compareNumericTypes(const void *arg1, const void *arg2)
 {
-    NumericType num1 = *(NumericType *)arg1;
-    NumericType num2 = *(NumericType *)arg2;
-
-    if (num1 < num2)
-    {
-        return -1;
-    }
-    if (num1 > num2)
+    NumericType diff = *((NumericType*)arg1) - *((NumericType*)arg2);
+    if (diff > 0)
     {
         return 1;
     }
-    return 0;
+    else if (diff < 0)
+    {
+        return -1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 long fileSize(FILE* stream)
