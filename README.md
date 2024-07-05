@@ -5,13 +5,13 @@
 ## Requirements
 
 - CMake 3.22.1 or newer [CMake Download](https://cmake.org/download/)
-- C compiler (for example, GCC)
+- C++ compiler (for example, g++)
 
 ### Building a project
 
 1.  ```sh
     git clone https://github.com/vtarasiuk/dev_task.git
-    cd devtask
+    cd dev_task
     ```
 
 2.  ```sh
