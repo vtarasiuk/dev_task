@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <search.h>
 #include <malloc.h>
+#include <errno.h>
 
 int main(int argc, char *argv[])
 {
